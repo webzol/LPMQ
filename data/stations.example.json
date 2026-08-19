@@ -1,0 +1,11 @@
+[
+  {
+    "id": "example-id",
+    "name": "示例中转站",
+    "base_url": "https://api.example.com",
+    "api_key": "sk-your-api-key",
+    "protocol": "auto",
+    "created_at": "2026-08-19T00:00:00",
+    "updated_at": "2026-08-19T00:00:00"
+  }
+]

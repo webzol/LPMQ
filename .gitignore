@@ -1,0 +1,19 @@
+# 数据文件（含中转站密钥，绝不提交到 git）
+data/stations.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.eggs/
+
+# 环境变量
+.env
+
+# 系统文件
+.DS_Store
+Thumbs.db
+desktop.ini

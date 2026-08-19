@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>中转站管理面板</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>中转站管理面板</h1>
+    <span class="subtitle">集中管理多个 API 中转站 · 查看并实测模型可用性</span>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="sidebar-head">
+        <h2>中转站</h2>
+        <button id="btn-add" class="btn btn-primary btn-sm">＋ 新增</button>
+      </div>
+      <ul id="station-list" class="station-list"></ul>
+    </aside>
+
+    <main class="content">
+      <div id="empty" class="empty">
+        <p>请选择左侧中转站查看详情，或点击「新增」添加一个中转站。</p>
+      </div>
+
+      <section id="detail" class="detail hidden">
+        <div class="detail-head">
+          <div class="detail-title">
+            <h2 id="detail-name"></h2>
+            <div class="meta" id="detail-meta"></div>
+          </div>
+          <div class="detail-actions">
+            <button id="btn-fetch" class="btn">拉取模型</button>
+            <button id="btn-test-all" class="btn btn-primary">测试全部</button>
+            <button id="btn-edit" class="btn">编辑</button>
+            <button id="btn-delete" class="btn btn-danger">删除</button>
+          </div>
+        </div>
+
+        <div class="summary hidden" id="summary"></div>
+        <div class="status-line" id="status-line"></div>
+
+        <div class="table-wrap hidden" id="table-wrap">
+          <table class="model-table">
+            <thead>
+              <tr>
+                <th>模型</th>
+                <th>状态</th>
+                <th>延迟 (ms)</th>
+                <th>错误信息</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="model-body"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- 新增 / 编辑弹窗 -->
+  <div class="modal hidden" id="modal">
+    <div class="modal-box">
+      <h2 id="modal-title">新增中转站</h2>
+      <form id="station-form" autocomplete="off">
+        <label>
+          名称
+          <input id="f-name" required placeholder="例如：主站" />
+        </label>
+        <label>
+          地址 (Base URL)
+          <input id="f-base" required placeholder="https://api.example.com" />
+        </label>
+        <label>
+          API 密钥
+          <input id="f-key" type="password" placeholder="sk-..." />
+        </label>
+        <label>
+          协议
+          <select id="f-protocol">
+            <option value="auto">自动探测</option>
+            <option value="openai">OpenAI 兼容</option>
+            <option value="anthropic">Anthropic 兼容</option>
+          </select>
+        </label>
+        <p class="hint" id="key-hint"></p>
+        <div class="modal-actions">
+          <button type="button" class="btn" id="btn-cancel">取消</button>
+          <button type="submit" class="btn btn-primary">保存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
