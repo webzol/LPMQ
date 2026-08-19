@@ -4,13 +4,14 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .config import STATIC_DIR
-from .routers import stations
+from .routers import datacenter, stations
 
 STATIC_DIR.mkdir(parents=True, exist_ok=True)
 
 app = FastAPI(title="中转站管理面板", version="1.0.0")
 
 app.include_router(stations.router)
+app.include_router(datacenter.router)
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 

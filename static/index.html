@@ -7,63 +7,92 @@
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
-  <header class="topbar">
+  <header class="topbar glass">
     <h1>中转站管理面板</h1>
-    <span class="subtitle">集中管理多个 API 中转站 · 查看并实测模型可用性</span>
+    <nav class="nav">
+      <button class="nav-tab active" data-view="manage">中转站管理</button>
+      <button class="nav-tab" data-view="datacenter">数据中心</button>
+    </nav>
   </header>
 
-  <div class="layout">
-    <aside class="sidebar">
-      <div class="sidebar-head">
-        <h2>中转站</h2>
-        <button id="btn-add" class="btn btn-primary btn-sm">＋ 新增</button>
-      </div>
-      <ul id="station-list" class="station-list"></ul>
-    </aside>
+  <!-- 中转站管理视图 -->
+  <div class="view" id="view-manage">
+    <div class="layout">
+      <aside class="sidebar glass">
+        <div class="sidebar-head">
+          <h2>中转站</h2>
+          <button id="btn-add" class="btn btn-primary btn-sm">＋ 新增</button>
+        </div>
+        <ul id="station-list" class="station-list"></ul>
+      </aside>
 
-    <main class="content">
-      <div id="empty" class="empty">
-        <p>请选择左侧中转站查看详情，或点击「新增」添加一个中转站。</p>
-      </div>
-
-      <section id="detail" class="detail hidden">
-        <div class="detail-head">
-          <div class="detail-title">
-            <h2 id="detail-name"></h2>
-            <div class="meta" id="detail-meta"></div>
-          </div>
-          <div class="detail-actions">
-            <button id="btn-fetch" class="btn">拉取模型</button>
-            <button id="btn-test-all" class="btn btn-primary">测试全部</button>
-            <button id="btn-edit" class="btn">编辑</button>
-            <button id="btn-delete" class="btn btn-danger">删除</button>
-          </div>
+      <main class="content">
+        <div id="empty" class="empty">
+          <p>请选择左侧中转站查看详情，或点击「新增」添加一个中转站。</p>
         </div>
 
-        <div class="summary hidden" id="summary"></div>
-        <div class="status-line" id="status-line"></div>
+        <section id="detail" class="detail glass hidden">
+          <div class="detail-head">
+            <div class="detail-title">
+              <h2 id="detail-name"></h2>
+              <div class="meta" id="detail-meta"></div>
+            </div>
+            <div class="detail-actions">
+              <button id="btn-fetch" class="btn">拉取模型</button>
+              <button id="btn-test-all" class="btn btn-primary">测试全部</button>
+              <button id="btn-edit" class="btn">编辑</button>
+              <button id="btn-delete" class="btn btn-danger">删除</button>
+            </div>
+          </div>
 
-        <div class="table-wrap hidden" id="table-wrap">
-          <table class="model-table">
-            <thead>
-              <tr>
-                <th>模型</th>
-                <th>状态</th>
-                <th>延迟 (ms)</th>
-                <th>错误信息</th>
-                <th>操作</th>
-              </tr>
-            </thead>
-            <tbody id="model-body"></tbody>
-          </table>
-        </div>
-      </section>
-    </main>
+          <div class="summary hidden" id="summary"></div>
+          <div class="status-line" id="status-line"></div>
+
+          <div class="table-wrap hidden" id="table-wrap">
+            <table class="model-table">
+              <thead>
+                <tr>
+                  <th>模型</th>
+                  <th>状态</th>
+                  <th>延迟 (ms)</th>
+                  <th>错误信息</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="model-body"></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- 数据中心视图 -->
+  <div class="view hidden" id="view-datacenter">
+    <div class="dc-container">
+      <div class="dc-toolbar glass">
+        <button id="btn-aggregate" class="btn btn-primary">⟳ 聚合刷新</button>
+        <select id="dc-status" class="glass-input">
+          <option value="all">全部状态</option>
+          <option value="available">✅ 可用</option>
+          <option value="partial">◐ 部分可用</option>
+          <option value="unavailable">❌ 不可用</option>
+        </select>
+        <input id="dc-search" class="glass-input" placeholder="搜索模型名…" />
+        <select id="dc-station" class="glass-input">
+          <option value="all">全部中转站</option>
+        </select>
+      </div>
+
+      <div class="dc-summary glass hidden" id="dc-summary"></div>
+      <div class="dc-status" id="dc-status"></div>
+      <div class="dc-grid" id="dc-grid"></div>
+    </div>
   </div>
 
   <!-- 新增 / 编辑弹窗 -->
   <div class="modal hidden" id="modal">
-    <div class="modal-box">
+    <div class="modal-box glass">
       <h2 id="modal-title">新增中转站</h2>
       <form id="station-form" autocomplete="off">
         <label>
@@ -92,6 +121,18 @@
           <button type="submit" class="btn btn-primary">保存</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- 毛玻璃确认弹窗 -->
+  <div class="modal hidden" id="confirm-modal">
+    <div class="modal-box glass confirm-box">
+      <h2 id="confirm-title">确认</h2>
+      <p id="confirm-message"></p>
+      <div class="modal-actions">
+        <button type="button" class="btn" id="confirm-cancel">取消</button>
+        <button type="button" class="btn btn-danger" id="confirm-ok">确定</button>
+      </div>
     </div>
   </div>
 

@@ -6,6 +6,12 @@ const state = {
   results: {},         // model -> { available, latency_ms, error }
   editingId: null,     // 编辑中的 station id；null 表示新增
   busy: false,         // 是否正在测试中
+
+  // 数据中心
+  dcData: null,        // 聚合结果
+  dcStatusFilter: "all",
+  dcStationFilter: "all",
+  dcSearch: "",
 };
 
 const $ = (sel) => document.querySelector(sel);
@@ -33,7 +39,32 @@ function escapeHtml(s) {
   }[c]));
 }
 
-// ---------- 列表 ----------
+// ============ 毛玻璃确认弹窗 ============
+let confirmResolve = null;
+function confirmDialog(message, title = "确认") {
+  return new Promise((resolve) => {
+    $("#confirm-title").textContent = title;
+    $("#confirm-message").textContent = message;
+    confirmResolve = resolve;
+    $("#confirm-modal").classList.remove("hidden");
+  });
+}
+function closeConfirm(result) {
+  $("#confirm-modal").classList.add("hidden");
+  if (confirmResolve) { confirmResolve(result); confirmResolve = null; }
+}
+
+// ============ 视图切换 ============
+function switchView(view) {
+  document.querySelectorAll(".nav-tab").forEach((t) =>
+    t.classList.toggle("active", t.dataset.view === view)
+  );
+  $("#view-manage").classList.toggle("hidden", view !== "manage");
+  $("#view-datacenter").classList.toggle("hidden", view !== "datacenter");
+  if (view === "datacenter" && state.dcData) renderAggregate();
+}
+
+// ============ 中转站列表 ============
 async function loadStations() {
   state.stations = await api("/api/stations");
   renderStationList();
@@ -86,7 +117,7 @@ function showEmpty() {
   $("#empty").classList.remove("hidden");
 }
 
-// ---------- 弹窗 ----------
+// ============ 新增 / 编辑弹窗 ============
 function openModal(id) {
   state.editingId = id || null;
   const isEdit = !!id;
@@ -136,7 +167,7 @@ async function saveStation(e) {
   await loadStations();
 }
 
-// ---------- 模型 ----------
+// ============ 模型拉取 / 测试 ============
 function setStatus(text, cls = "") {
   const el = $("#status-line");
   el.textContent = text;
@@ -285,18 +316,146 @@ function renderModels() {
   });
 }
 
-// ---------- 删除 ----------
+// ============ 删除 ============
 async function deleteCurrent() {
   if (!state.currentId) return;
   const s = state.stations.find((x) => x.id === state.currentId);
-  if (!confirm(`确定删除中转站「${s.name}」吗？`)) return;
+  if (!(await confirmDialog(`确定删除中转站「${s.name}」吗？此操作不可撤销。`, "删除确认"))) return;
   await api(`/api/stations/${state.currentId}`, { method: "DELETE" });
   state.currentId = null;
   await loadStations();
 }
 
-// ---------- 初始化 ----------
+// ============ 数据中心 ============
+function setDcStatus(text, cls = "") {
+  const el = $("#dc-status");
+  el.textContent = text;
+  el.className = "dc-status " + cls;
+}
+
+async function aggregate() {
+  setDcStatus("正在聚合所有中转站并实测模型（站点多时可能稍慢）…", "loading");
+  $("#btn-aggregate").disabled = true;
+  try {
+    const data = await api("/api/datacenter/aggregate", { method: "POST" });
+    state.dcData = data;
+    state.dcStatusFilter = "all";
+    state.dcStationFilter = "all";
+    state.dcSearch = "";
+    $("#dc-search").value = "";
+    refreshStationOptions();
+    renderAggregate();
+
+    if (data.errors && data.errors.length) {
+      setDcStatus(`聚合完成，但 ${data.errors.length} 个中转站失败：${data.errors.join("；")}`, "error");
+    } else if (data.models.length === 0) {
+      setDcStatus("聚合完成，但没有找到任何模型", "warn");
+    } else {
+      setDcStatus(`聚合完成：共 ${data.models.length} 个模型`, "ok");
+    }
+  } catch (err) {
+    setDcStatus("聚合失败：" + err.message, "error");
+  } finally {
+    $("#btn-aggregate").disabled = false;
+  }
+}
+
+function refreshStationOptions() {
+  const sel = $("#dc-station");
+  const current = sel.value;
+  sel.innerHTML = '<option value="all">全部中转站</option>';
+  if (state.dcData && state.dcData.stations) {
+    state.dcData.stations.forEach((s) => {
+      const opt = document.createElement("option");
+      opt.value = s.id;
+      opt.textContent = s.name;
+      sel.appendChild(opt);
+    });
+  }
+  sel.value = current || "all";
+}
+
+function renderAggregate() {
+  if (!state.dcData) return;
+  const models = state.dcData.models;
+  const total = models.length;
+  const available = models.filter((m) => m.status === "available").length;
+  const partial = models.filter((m) => m.status === "partial").length;
+  const unavailable = models.filter((m) => m.status === "unavailable").length;
+
+  const summary = $("#dc-summary");
+  summary.classList.remove("hidden");
+  summary.innerHTML = `
+    <span class="stat">模型总数 <b>${total}</b></span>
+    <span class="stat ok">✅ 全部可用 <b>${available}</b></span>
+    <span class="stat" style="color:var(--warn)">◐ 部分可用 <b>${partial}</b></span>
+    <span class="stat bad">❌ 不可用 <b>${unavailable}</b></span>
+  `;
+  renderDcCards();
+}
+
+function renderDcCards() {
+  const grid = $("#dc-grid");
+  const q = state.dcSearch.trim().toLowerCase();
+  const st = state.dcStatusFilter;
+  const station = state.dcStationFilter;
+
+  const models = state.dcData.models.filter((m) => {
+    if (st !== "all" && m.status !== st) return false;
+    if (q && !m.model.toLowerCase().includes(q)) return false;
+    if (station !== "all" && !m.per_station.some((p) => p.station_id === station)) return false;
+    return true;
+  });
+
+  grid.innerHTML = "";
+  if (models.length === 0) {
+    grid.innerHTML = '<div class="empty">没有符合条件的模型</div>';
+    return;
+  }
+
+  models.forEach((m) => {
+    const card = document.createElement("div");
+    card.className = "dc-card";
+    const barClass = m.status === "available" ? "" : m.status;
+    const pct = m.total ? Math.round((m.available / m.total) * 100) : 0;
+    const badge = m.status === "available"
+      ? '<span class="badge badge-ok">✅ 可用</span>'
+      : m.status === "partial"
+        ? '<span class="badge badge-warn">◐ 部分可用</span>'
+        : '<span class="badge badge-bad">❌ 不可用</span>';
+
+    const detailRows = m.per_station.map((p) => `
+      <div class="dc-station-row">
+        <span class="dc-station-name">${escapeHtml(p.station)}</span>
+        ${p.available
+          ? `<span class="badge badge-ok">✅</span><span class="dc-station-latency">${p.latency_ms ?? "—"} ms</span>`
+          : `<span class="badge badge-bad">❌</span>`}
+      </div>
+      ${p.available ? "" : `<div class="dc-station-err">${escapeHtml(p.error || "")}</div>`}
+    `).join("");
+
+    card.innerHTML = `
+      <div class="dc-card-head">
+        <span class="dc-model">${escapeHtml(m.model)}</span>
+        ${badge}
+      </div>
+      <div class="dc-ratio">可用 ${m.available} / ${m.total} 站</div>
+      <div class="dc-bar"><div class="dc-bar-fill ${barClass}" style="width:${pct}%"></div></div>
+      <div class="dc-detail">${detailRows}</div>
+    `;
+    card.addEventListener("click", () => card.classList.toggle("open"));
+    grid.appendChild(card);
+  });
+}
+
+// ============ 初始化 ============
 function bindEvents() {
+  // 导航
+  document.querySelectorAll(".nav-tab").forEach((t) =>
+    t.addEventListener("click", () => switchView(t.dataset.view))
+  );
+
+  // 管理
   $("#btn-add").addEventListener("click", () => openModal(null));
   $("#btn-cancel").addEventListener("click", closeModal);
   $("#station-form").addEventListener("submit", saveStation);
@@ -307,7 +466,21 @@ function bindEvents() {
   $("#modal").addEventListener("click", (e) => {
     if (e.target === $("#modal")) closeModal();
   });
+
+  // 确认弹窗
+  $("#confirm-ok").addEventListener("click", () => closeConfirm(true));
+  $("#confirm-cancel").addEventListener("click", () => closeConfirm(false));
+  $("#confirm-modal").addEventListener("click", (e) => {
+    if (e.target === $("#confirm-modal")) closeConfirm(false);
+  });
+
+  // 数据中心
+  $("#btn-aggregate").addEventListener("click", aggregate);
+  $("#dc-status").addEventListener("change", (e) => { state.dcStatusFilter = e.target.value; renderDcCards(); });
+  $("#dc-station").addEventListener("change", (e) => { state.dcStationFilter = e.target.value; renderDcCards(); });
+  $("#dc-search").addEventListener("input", (e) => { state.dcSearch = e.target.value; renderDcCards(); });
 }
 
 bindEvents();
+setDcStatus("点击「聚合刷新」加载所有中转站的模型数据", "");
 loadStations().catch((err) => setStatus("加载中转站列表失败：" + err.message, "error"));
